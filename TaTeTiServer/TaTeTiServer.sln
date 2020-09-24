@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30503.244
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TaTeTiServer", "TaTeTiServer\TaTeTiServer.vcxproj", "{CEAB1F53-77AF-4EE5-9BDE-90AEF6DCFF9C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CEAB1F53-77AF-4EE5-9BDE-90AEF6DCFF9C}.Debug|x64.ActiveCfg = Debug|x64
+		{CEAB1F53-77AF-4EE5-9BDE-90AEF6DCFF9C}.Debug|x64.Build.0 = Debug|x64
+		{CEAB1F53-77AF-4EE5-9BDE-90AEF6DCFF9C}.Debug|x86.ActiveCfg = Debug|Win32
+		{CEAB1F53-77AF-4EE5-9BDE-90AEF6DCFF9C}.Debug|x86.Build.0 = Debug|Win32
+		{CEAB1F53-77AF-4EE5-9BDE-90AEF6DCFF9C}.Release|x64.ActiveCfg = Release|x64
+		{CEAB1F53-77AF-4EE5-9BDE-90AEF6DCFF9C}.Release|x64.Build.0 = Release|x64
+		{CEAB1F53-77AF-4EE5-9BDE-90AEF6DCFF9C}.Release|x86.ActiveCfg = Release|Win32
+		{CEAB1F53-77AF-4EE5-9BDE-90AEF6DCFF9C}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1F1BD12E-CDAE-408E-8700-D61BF76D0EA4}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,5 @@
+﻿  Cliente.cpp
+G:\Escritorio\Multiplayer\TaTeTi\TaTeTiCliente\TaTeTiCliente\Cliente.cpp(23,1): warning C4326: el tipo de valor devuelto de 'main' debe ser 'int' en lugar de 'void'
+G:\Escritorio\Multiplayer\TaTeTi\TaTeTiCliente\TaTeTiCliente\Cliente.cpp(41,17): warning C4244: '=': conversión de 'SOCKET' a 'int'; posible pérdida de datos
+G:\Escritorio\Multiplayer\TaTeTi\TaTeTiCliente\TaTeTiCliente\Cliente.cpp(73,8): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+  TaTeTiCliente.vcxproj -> G:\Escritorio\Multiplayer\TaTeTi\TaTeTiCliente\x64\Debug\TaTeTiCliente.exe

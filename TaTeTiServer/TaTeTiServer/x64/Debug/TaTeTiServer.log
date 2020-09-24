@@ -1,0 +1,6 @@
+﻿  Server.cpp
+G:\Escritorio\Multiplayer\TaTeTi\TaTeTiServer\TaTeTiServer\Server.cpp(104,12): warning C4244: 'argumento': conversión de 'time_t' a 'unsigned int'; posible pérdida de datos
+G:\Escritorio\Multiplayer\TaTeTi\TaTeTiServer\TaTeTiServer\Server.cpp(437,12): warning C4244: 'argumento': conversión de 'time_t' a 'unsigned int'; posible pérdida de datos
+G:\Escritorio\Multiplayer\TaTeTi\TaTeTiServer\TaTeTiServer\Server.cpp(691,18): warning C4244: 'argumento': conversión de 'SOCKET' a 'int'; posible pérdida de datos
+G:\Escritorio\Multiplayer\TaTeTi\TaTeTiServer\TaTeTiServer\Server.cpp(336): warning C4715: 'CheckIfWinnerInRoom': no todas las rutas de acceso de control devuelven un valor
+  TaTeTiServer.vcxproj -> G:\Escritorio\Multiplayer\TaTeTi\TaTeTiServer\x64\Debug\TaTeTiServer.exe
