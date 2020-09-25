@@ -33,7 +33,7 @@ int id = 0;
 
 struct User {
 	string _name;
-	int userID;
+	int userID = -1;
 	sockaddr_in _userip;
 	sockaddr_in _userport;
 	string room;
@@ -56,7 +56,7 @@ struct PlayRoom {
 char serverAnswer[BUFLEN];
 vector<struct sockaddr_in> generalusers;
 vector<PlayRoom> playRooms;
-list<User> userList;
+vector<User> userList;
 
 
 
@@ -115,7 +115,7 @@ PlayRoom CreateGameRoom(string newname) {
 }
 
 string GetURoom(sockaddr_in user) {
-	list<User>::iterator it = userList.begin();
+	vector<User>::iterator it = userList.begin();
 	for (size_t i = 0; i < userList.size(); i++) {
 		if (it->_userip.sin_addr.S_un.S_addr == user.sin_addr.S_un.S_addr && it->_userport.sin_port == user.sin_port) {
 			return it->room;
@@ -125,8 +125,9 @@ string GetURoom(sockaddr_in user) {
 	return "none";
 }
 
+
 string GetUName(sockaddr_in userip) {
-	list<User>::iterator it = userList.begin();
+	vector<User>::iterator it = userList.begin();
 	for (size_t i = 0; i < userList.size(); i++) {
 		if (it->_userip.sin_addr.S_un.S_addr == userip.sin_addr.S_un.S_addr && it->_userport.sin_port == userip.sin_port) {
 			return it->_name.c_str();
@@ -136,8 +137,9 @@ string GetUName(sockaddr_in userip) {
 	return "none";
 }
 
+
 bool GetUPlayStatus(sockaddr_in user) {
-	list<User>::iterator it = userList.begin();
+	vector<User>::iterator it = userList.begin();
 	for (size_t i = 0; i < userList.size(); i++) {
 		if (it->_userip.sin_addr.S_un.S_addr == user.sin_addr.S_un.S_addr && it->_userport.sin_port == user.sin_port) {
 			return it->_isPlaying;
@@ -148,7 +150,7 @@ bool GetUPlayStatus(sockaddr_in user) {
 }
 
 int GetUID(sockaddr_in user) {
-	list<User>::iterator it = userList.begin();
+	vector<User>::iterator it = userList.begin();
 	for (size_t i = 0; i < userList.size(); i++) {
 		if (it->_userip.sin_addr.S_un.S_addr == user.sin_addr.S_un.S_addr && it->_userport.sin_port == user.sin_port) {
 			return it->userID;
@@ -159,7 +161,7 @@ int GetUID(sockaddr_in user) {
 }
 
 void MoveUserRoom(sockaddr_in user, string room) {
-	list<User>::iterator it = userList.begin();
+	vector<User>::iterator it = userList.begin();
 	for (size_t i = 0; i < userList.size(); i++) {
 		if (it->_userip.sin_addr.S_un.S_addr == user.sin_addr.S_un.S_addr && it->_userport.sin_port == user.sin_port) {
 			it->room = room;
@@ -170,7 +172,7 @@ void MoveUserRoom(sockaddr_in user, string room) {
 
 bool FindEmptyRoom(sockaddr_in user) {
 	int aux = 0;
-	list<User>::iterator it = userList.begin();
+	vector<User>::iterator it = userList.begin();
 	for (size_t i = 0; i < playRooms.size(); i++) {
 		if (playRooms[i]._playerX == "empty" && playRooms[i]._playerO != GetUName(user)) {
 			for (size_t j = 0; j < userList.size(); i++) {
@@ -201,7 +203,7 @@ bool FindEmptyRoom(sockaddr_in user) {
 
 bool CheckUserIdentity(sockaddr_in checkip) {
 	bool exists = false;
-	list<User>::iterator it = userList.begin();
+	vector<User>::iterator it = userList.begin();
 	for (size_t i = 0; i < userList.size(); i++) {
 		if (it->_userip.sin_addr.S_un.S_addr == checkip.sin_addr.S_un.S_addr && it->_userport.sin_port == checkip.sin_port) {
 			exists = true;
@@ -213,7 +215,7 @@ bool CheckUserIdentity(sockaddr_in checkip) {
 }
 
 PlayRoom GetPlayerGameRoom(sockaddr_in user) {
-	list<User>::iterator itu = userList.begin();
+	vector<User>::iterator itu = userList.begin();
 	vector<PlayRoom>::iterator error = (playRooms.end() - 1);
 	for (size_t i = 0; i < userList.size(); i++) {
 		if (itu->_userip.sin_addr.S_un.S_addr == user.sin_addr.S_un.S_addr && itu->_userport.sin_port == user.sin_port) {
@@ -474,24 +476,19 @@ void Command(string _buf, sockaddr_in user) {
 
 		if (FindEmptyRoom(user)) {
 
-			/*
 			//printf("Player %s has joined a game room",GUserName(user));
-			if (GUserName(user) == GetPlayerGameRoom(user)._playerX && GetPlayerGameRoom(user)._playerO == "empty"){
+			if (GetUName(user) == GetPlayerGameRoom(user)._playerX && GetPlayerGameRoom(user)._playerO == "empty"){
 				WriteServerAnswer("A gameroom has been found! But you are alone, so you'll have to wait for another player\n");
-				GetPlayerGameRoom(user)._playerX = "full";
 			}
-			if (GUserName(user) == GetPlayerGameRoom(user)._playerO && GetPlayerGameRoom(user)._playerX == "empty"){
+			if (GetUName(user) == GetPlayerGameRoom(user)._playerO && GetPlayerGameRoom(user)._playerX == "empty"){
 				WriteServerAnswer("A gameroom has been found! But you are alone, so you'll have to wait for another player\n");
-				GetPlayerGameRoom(user)._playerX = "full";
 			}
-			if (GUserName(user) == GetPlayerGameRoom(user)._playerX && GetPlayerGameRoom(user)._playerO != "empty"){
+			if (GetUName(user) == GetPlayerGameRoom(user)._playerX && GetPlayerGameRoom(user)._playerO != "empty"){
 				WriteServerAnswer("A gameroom has been found, and with someone in it at that!\nGame starting with " + GetPlayerGameRoom(user)._playerX + " as the X and " + GetPlayerGameRoom(user)._playerO + " as the O \n" + DrawBoard(GetPlayerGameRoom(user)) + "\n");
-				GetPlayerGameRoom(user)._playerX = "full";
 			}
-			if (GUserName(user) == GetPlayerGameRoom(user)._playerO && GetPlayerGameRoom(user)._playerX != "empty"){
+			if (GetUName(user) == GetPlayerGameRoom(user)._playerO && GetPlayerGameRoom(user)._playerX != "empty"){
 				WriteServerAnswer("A gameroom has been found, and with someone in it at that!\nGame starting with " + GetPlayerGameRoom(user)._playerX + " as the X Player and " + GetPlayerGameRoom(user)._playerO + " as the O Player\n" + DrawBoard(GetPlayerGameRoom(user)) + "\n");
-				GetPlayerGameRoom(user)._playerX = "full";
-			}*/
+			}
 		}
 		else {
 			WriteServerAnswer("Sorry, but all the rooms are filled, please try again later\n");
@@ -711,9 +708,9 @@ int main() {
 
 
 
-			if (CheckUserIdentity(sizeSocket)) {
+			if (actualID >= 0) {
 				if (buf[0] == '#') {
-					if (GetUPlayStatus(sizeSocket))
+					if (userList[actualID]._isPlaying)
 						PlayCommand(buf, sizeSocket);
 					else
 						Command(buf, sizeSocket);
