@@ -8,11 +8,9 @@
 
 /*
 To do :
-Chequeo de posisiones en el ta te ti
 Chequeo de nombres de usuario.
 Limpieza de codigo
 Sala de espera una vez que el partido finaliza
-
 */
 
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
@@ -31,13 +29,19 @@ Sala de espera una vez que el partido finaliza
 using namespace std;
 int id = 0;
 
+enum game {
+	notPlaying,
+	circle,
+	cross = 2
+};
+
 struct User {
 	string _name;
 	int userID = -1;
 	sockaddr_in _userip;
 	sockaddr_in _userport;
 	string room;
-	bool _isPlaying;
+	int _isPlaying;
 	bool _isWaiting;
 };
 
@@ -46,7 +50,7 @@ struct PlayRoom {
 	char spaces[3][3];
 	string _playerX;
 	string _playerO;
-	bool _arePlaying;
+	bool _arePlaying = false;
 	bool _isXTurn;
 	bool _gameEnded;
 	bool _xReplay;
@@ -57,12 +61,22 @@ char serverAnswer[BUFLEN];
 vector<struct sockaddr_in> generalusers;
 vector<PlayRoom> playRooms;
 vector<User> userList;
+vector<int> waitingList;
 
 
 
 void WriteServerAnswer(string answer) {
-	for (size_t i = 0; i < answer.length(); i++) {
-		serverAnswer[i] = answer[i];
+	int a = 0;
+	for (size_t i = 0; i < BUFLEN; i++){
+		if (serverAnswer[i] == '\0') {
+			break;
+		}
+		else
+			a++;
+	}
+	for (int j = 0; j < answer.length(); j++) {
+		serverAnswer[a] = answer[j];
+		a++;
 	}
 }
 
@@ -73,7 +87,7 @@ void SetUserName(sockaddr_in loginip, string newname) {
 	k._userip.sin_addr = loginip.sin_addr;
 	k._userport.sin_port = loginip.sin_port;
 	k.room = "general";
-	k._isPlaying = false;
+	k._isPlaying = notPlaying;
 	k._isWaiting = false;
 	userList.push_back(k);
 
@@ -126,19 +140,8 @@ string GetURoom(sockaddr_in user) {
 }
 
 
-string GetUName(sockaddr_in userip) {
-	vector<User>::iterator it = userList.begin();
-	for (size_t i = 0; i < userList.size(); i++) {
-		if (it->_userip.sin_addr.S_un.S_addr == userip.sin_addr.S_un.S_addr && it->_userport.sin_port == userip.sin_port) {
-			return it->_name.c_str();
-		}
-		it++;
-	}
-	return "none";
-}
 
-
-bool GetUPlayStatus(sockaddr_in user) {
+int GetUPlayStatus(sockaddr_in user) {
 	vector<User>::iterator it = userList.begin();
 	for (size_t i = 0; i < userList.size(); i++) {
 		if (it->_userip.sin_addr.S_un.S_addr == user.sin_addr.S_un.S_addr && it->_userport.sin_port == user.sin_port) {
@@ -146,7 +149,7 @@ bool GetUPlayStatus(sockaddr_in user) {
 		}
 		it++;
 	}
-	return false;
+	return -1;
 }
 
 int GetUID(sockaddr_in user) {
@@ -170,36 +173,6 @@ void MoveUserRoom(sockaddr_in user, string room) {
 	}
 }
 
-bool FindEmptyRoom(sockaddr_in user) {
-	int aux = 0;
-	vector<User>::iterator it = userList.begin();
-	for (size_t i = 0; i < playRooms.size(); i++) {
-		if (playRooms[i]._playerX == "empty" && playRooms[i]._playerO != GetUName(user)) {
-			for (size_t j = 0; j < userList.size(); i++) {
-				if (it->_userip.sin_addr.S_un.S_addr == user.sin_addr.S_un.S_addr && it->_userport.sin_port == user.sin_port) {
-					it->room = playRooms[j]._playroomname;
-					playRooms[j]._playerX = it->_name;
-					it->_isPlaying = true;
-					return true;
-				}
-				it++;
-			}
-		}
-		else if (playRooms[i]._playerO == "empty" && playRooms[i]._playerX != GetUName(user)) {
-			for (size_t k = 0; k < userList.size(); i++) {
-				if (it->_userip.sin_addr.S_un.S_addr == user.sin_addr.S_un.S_addr && it->_userport.sin_port == user.sin_port) {
-					it->room = playRooms[k]._playroomname;
-					playRooms[k]._playerO = it->_name;
-					it->_isPlaying = true;
-					return true;
-				}
-				it++;
-			}
-		}
-	}
-	return false;
-
-}
 
 bool CheckUserIdentity(sockaddr_in checkip) {
 	bool exists = false;
@@ -214,18 +187,12 @@ bool CheckUserIdentity(sockaddr_in checkip) {
 	return exists;
 }
 
-PlayRoom GetPlayerGameRoom(sockaddr_in user) {
-	vector<User>::iterator itu = userList.begin();
+PlayRoom GetPlayerGameRoom(int user) {
 	vector<PlayRoom>::iterator error = (playRooms.end() - 1);
-	for (size_t i = 0; i < userList.size(); i++) {
-		if (itu->_userip.sin_addr.S_un.S_addr == user.sin_addr.S_un.S_addr && itu->_userport.sin_port == user.sin_port) {
-			for (size_t i = 0; i < playRooms.size(); i++) {
-				if (playRooms[i]._playroomname == itu->room) {
-					return playRooms[i];
-				}
-			}
+	for (size_t i = 0; i < playRooms.size(); i++) {
+		if (playRooms[i]._playroomname == userList[user].room) {
+			return playRooms[i];
 		}
-		itu++;
 	}
 	return *error;
 }
@@ -354,63 +321,109 @@ void ChangeRoomBool(PlayRoom room, string value, bool status) {
 	}
 }
 
-void PlayerMoveMaker(sockaddr_in user, char place) {
+void PlayerMoveMaker(int user, char place) {
 	for (size_t i = 0; i < playRooms.size(); i++) {
 		if (playRooms[i]._playroomname == GetPlayerGameRoom(user)._playroomname) {
 			switch (place) {
 			case '1':
-				if (GetUName(user) == playRooms[i]._playerX)
-					playRooms[i].spaces[0][0] = 'X';
-				else if (GetUName(user) == playRooms[i]._playerO)
-					playRooms[i].spaces[0][0] = 'O';
+				if (playRooms[i].spaces[0][0] == '1') {
+					if (userList[user]._name == playRooms[i]._playerX)
+						playRooms[i].spaces[0][0] = 'X';
+					else if (userList[user]._name == playRooms[i]._playerO)
+						playRooms[i].spaces[0][0] = 'O';
+				}
+				else {
+					WriteServerAnswer("PERDISTE EL TURNO POR TRAMPOSO \n");
+				}
 				break;
+
 			case '2':
-				if (GetUName(user) == playRooms[i]._playerX)
-					playRooms[i].spaces[0][1] = 'X';
-				else if (GetUName(user) == playRooms[i]._playerO)
-					playRooms[i].spaces[0][1] = 'O';
+				if (playRooms[i].spaces[0][1] == '2') {
+					if (userList[user]._name == playRooms[i]._playerX)
+						playRooms[i].spaces[0][1] = 'X';
+					else if (userList[user]._name == playRooms[i]._playerO)
+						playRooms[i].spaces[0][1] = 'O';
+				}
+				else {
+					WriteServerAnswer("PERDISTE EL TURNO POR TRAMPOSO \n");
+				}
 				break;
 			case '3':
-				if (GetUName(user) == playRooms[i]._playerX)
-					playRooms[i].spaces[0][2] = 'X';
-				else if (GetUName(user) == playRooms[i]._playerO)
-					playRooms[i].spaces[0][2] = 'O';
+				if (playRooms[i].spaces[0][2] == '3') {
+					if (userList[user]._name == playRooms[i]._playerX)
+						playRooms[i].spaces[0][2] = 'X';
+					else if (userList[user]._name == playRooms[i]._playerO)
+						playRooms[i].spaces[0][2] = 'O';
+				}
+				else {
+					WriteServerAnswer("PERDISTE EL TURNO POR TRAMPOSO \n");
+				}
 				break;
 			case '4':
-				if (GetUName(user) == playRooms[i]._playerX)
-					playRooms[i].spaces[1][0] = 'X';
-				else if (GetUName(user) == playRooms[i]._playerO)
-					playRooms[i].spaces[1][0] = 'O';
+				if (playRooms[i].spaces[1][0] == '4') {
+					if (userList[user]._name == playRooms[i]._playerX)
+						playRooms[i].spaces[1][0] = 'X';
+					else if (userList[user]._name == playRooms[i]._playerO)
+						playRooms[i].spaces[1][0] = 'O';
+				}
+				else {
+					WriteServerAnswer("PERDISTE EL TURNO POR TRAMPOSO \n");
+				}
 				break;
 			case '5':
-				if (GetUName(user) == playRooms[i]._playerX)
-					playRooms[i].spaces[1][1] = 'X';
-				else if (GetUName(user) == playRooms[i]._playerO)
-					playRooms[i].spaces[1][1] = 'O';
+				if (playRooms[i].spaces[1][1] == '5') {
+					if (userList[user]._name == playRooms[i]._playerX)
+						playRooms[i].spaces[1][1] = 'X';
+					else if (userList[user]._name == playRooms[i]._playerO)
+						playRooms[i].spaces[1][1] = 'O';
+				}
+				else {
+					WriteServerAnswer("PERDISTE EL TURNO POR TRAMPOSO \n");
+				}
 				break;
 			case '6':
-				if (GetUName(user) == playRooms[i]._playerX)
-					playRooms[i].spaces[1][2] = 'X';
-				else if (GetUName(user) == playRooms[i]._playerO)
-					playRooms[i].spaces[1][2] = 'O';
+				if (playRooms[i].spaces[1][2] == '6') {
+					if (userList[user]._name == playRooms[i]._playerX)
+						playRooms[i].spaces[1][2] = 'X';
+					else if (userList[user]._name == playRooms[i]._playerO)
+						playRooms[i].spaces[1][2] = 'O';
+				}
+				else {
+					WriteServerAnswer("PERDISTE EL TURNO POR TRAMPOSO \n");
+				}
 				break;
 			case '7':
-				if (GetUName(user) == playRooms[i]._playerX)
-					playRooms[i].spaces[2][0] = 'X';
-				else if (GetUName(user) == playRooms[i]._playerO)
-					playRooms[i].spaces[2][0] = 'O';
+				if (playRooms[i].spaces[2][0] == '7') {
+					if (userList[user]._name == playRooms[i]._playerX)
+						playRooms[i].spaces[2][0] = 'X';
+					else if (userList[user]._name == playRooms[i]._playerO)
+						playRooms[i].spaces[2][0] = 'O';
+				}
+				else {
+					WriteServerAnswer("PERDISTE EL TURNO POR TRAMPOSO \n");
+				}
 				break;
 			case '8':
-				if (GetUName(user) == playRooms[i]._playerX)
-					playRooms[i].spaces[2][1] = 'X';
-				else if (GetUName(user) == playRooms[i]._playerO)
-					playRooms[i].spaces[2][1] = 'O';
+				if (playRooms[i].spaces[2][1] == '8') {
+					if (userList[user]._name == playRooms[i]._playerX)
+						playRooms[i].spaces[2][1] = 'X';
+					else if (userList[user]._name == playRooms[i]._playerO)
+						playRooms[i].spaces[2][1] = 'O';
+				}
+				else {
+					WriteServerAnswer("PERDISTE EL TURNO POR TRAMPOSO \n");
+				}
 				break;
 			case '9':
-				if (GetUName(user) == playRooms[i]._playerX)
-					playRooms[i].spaces[2][2] = 'X';
-				else if (GetUName(user) == playRooms[i]._playerO)
-					playRooms[i].spaces[2][2] = 'O';
+				if (playRooms[i].spaces[2][2] == '9') {
+					if (userList[user]._name == playRooms[i]._playerX)
+						playRooms[i].spaces[2][2] = 'X';
+					else if (userList[user]._name == playRooms[i]._playerO)
+						playRooms[i].spaces[2][2] = 'O';
+				}
+				else {
+					WriteServerAnswer("PERDISTE EL TURNO POR TRAMPOSO \n");
+				}
 				break;
 			}
 			string result = CheckIfWinnerInRoom(GetPlayerGameRoom(user));
@@ -428,7 +441,7 @@ void PlayerMoveMaker(sockaddr_in user, char place) {
 				WriteServerAnswer(DrawBoard(GetPlayerGameRoom(user)) + "\nNo more moves to make! It's a TIE\n");
 			}
 			else if (result != "tie" && result != "none") {
-				WriteServerAnswer(DrawBoard(GetPlayerGameRoom(user)) + "\nGAME ENDED! The winner of the match is " + result + "\n");
+				WriteServerAnswer(DrawBoard(GetPlayerGameRoom(user)) + "\nGAME ENDED! The winner of the match is " + result + "\n" + "try #help");
 			}
 
 		}
@@ -455,7 +468,7 @@ bool StartRoomReplay(PlayRoom selectedroom) {
 }
 
 
-void Command(string _buf, sockaddr_in user) {
+void Command(string _buf, int user) {
 	char auxstring[UNLEN];
 	int auxnum = 0;
 	memset(auxstring, '\0', UNLEN);
@@ -467,116 +480,95 @@ void Command(string _buf, sockaddr_in user) {
 	}
 	//#play
 	else if (_buf[1] == 'p' && _buf[2] == 'l' && _buf[3] == 'a' && _buf[4] == 'y') {
-		WriteServerAnswer(GetUName(user) + " is looking for a game " + '\n');
+		
+		waitingList.push_back(user);
+		if (waitingList.size() == 2) {
+			for (size_t i = 1; i < playRooms.size(); i++) {
+				if (!playRooms[i]._arePlaying) {
+					userList[waitingList[0]].room = playRooms[i]._playroomname;
+					userList[waitingList[1]].room = playRooms[i]._playroomname;
 
-		if (true)
-		{
+					int random = rand() % 2 + 1;
+					userList[waitingList[0]]._isPlaying = random;
 
-		}
 
-		if (FindEmptyRoom(user)) {
+					if (playRooms[i]._isXTurn) {
+						WriteServerAnswer("The first one to start is X\n");
+					}
+					else {
+						WriteServerAnswer("The first one to start is O\n");
+					}
 
-			//printf("Player %s has joined a game room",GUserName(user));
-			if (GetUName(user) == GetPlayerGameRoom(user)._playerX && GetPlayerGameRoom(user)._playerO == "empty"){
-				WriteServerAnswer("A gameroom has been found! But you are alone, so you'll have to wait for another player\n");
-			}
-			if (GetUName(user) == GetPlayerGameRoom(user)._playerO && GetPlayerGameRoom(user)._playerX == "empty"){
-				WriteServerAnswer("A gameroom has been found! But you are alone, so you'll have to wait for another player\n");
-			}
-			if (GetUName(user) == GetPlayerGameRoom(user)._playerX && GetPlayerGameRoom(user)._playerO != "empty"){
-				WriteServerAnswer("A gameroom has been found, and with someone in it at that!\nGame starting with " + GetPlayerGameRoom(user)._playerX + " as the X and " + GetPlayerGameRoom(user)._playerO + " as the O \n" + DrawBoard(GetPlayerGameRoom(user)) + "\n");
-			}
-			if (GetUName(user) == GetPlayerGameRoom(user)._playerO && GetPlayerGameRoom(user)._playerX != "empty"){
-				WriteServerAnswer("A gameroom has been found, and with someone in it at that!\nGame starting with " + GetPlayerGameRoom(user)._playerX + " as the X Player and " + GetPlayerGameRoom(user)._playerO + " as the O Player\n" + DrawBoard(GetPlayerGameRoom(user)) + "\n");
+
+					if (random == cross) {
+						userList[waitingList[1]]._isPlaying = circle;
+						playRooms[i]._playerX = userList[waitingList[0]]._name;
+						playRooms[i]._playerO = userList[waitingList[1]]._name;
+						WriteServerAnswer("Game starting with " + 
+							userList[waitingList[0]]._name + " as the X and " +
+							userList[waitingList[1]]._name + " as the O " + '\n' +
+							DrawBoard(playRooms[i]) + '\n');
+					}
+					else {
+						userList[waitingList[1]]._isPlaying = cross;
+						playRooms[i]._playerO = userList[waitingList[0]]._name;
+						playRooms[i]._playerX = userList[waitingList[1]]._name;
+						WriteServerAnswer("Game starting with " +
+							userList[waitingList[1]]._name + " as the X and " +
+							userList[waitingList[0]]._name + " as the O " + '\n' +
+							DrawBoard(playRooms[i]) + '\n');
+					}
+
+					
+					
+
+					playRooms[i]._arePlaying = true;
+					waitingList.clear();
+					break;
+				}
 			}
 		}
 		else {
-			WriteServerAnswer("Sorry, but all the rooms are filled, please try again later\n");
+			WriteServerAnswer("A gameroom has been found! But you are alone, so you'll have to wait for another player\n");
 		}
+		
 	}
-	//#createroom Creates a new room
-	/*
-	else if (_buf[1] == 'c' && _buf[2] == 'r' && _buf[3] == 'e' && _buf[4] == 'a' && _buf[5] == 't' && _buf[6] == 'e' && _buf[7] == 'r' && _buf[8] == 'o' && _buf[9] == 'o' && _buf[10] == 'm' &&_buf[11] == ' ') {
-		printf("Creating new room\n");
-		if (CheckUserIdentity(user)) {
-			if (_buf.length() - 7 > ROOMLEN - 1) {
-				WriteServerAnswer("Name of the room too long. Max characters is " + ROOMLEN + '\n');
-			}
-			else {
-				for (size_t i = 12; i < _buf.length(); i++) {
-					auxstring[auxnum] = _buf[i];
-					auxnum++;
-				}
-				if (CheckExistingRooms(auxstring)) {
-					printf("User tried to create a room with a same name to an existing one\n");
-					WriteServerAnswer("Name for room already taken");
-				}
-				else {
-					chatrooms.push_back(auxstring);
-					printf("Created new room %s\n", auxstring);
-					WriteServerAnswer("Room was created succesfully\n");
-				}
-			}
-		}
-	}*/
-	//#checkrooms Check aexisting and current rooms
-	/*
-	else if (_buf[1] == 'c' && _buf[2] == 'h' && _buf[3] == 'e' && _buf[4] == 'c' && _buf[5] == 'k' && _buf[6] == 'r' && _buf[7] == 'o' && _buf[8] == 'o' && _buf[9] == 'm' &&_buf[10] == 's') {
-		if (CheckUserIdentity(user)) {
-			printf("User %s is checking their room\n", GUserName(user));
-			WriteServerAnswer("You are currently in the " + GUserRoom(user) + " room");
-		}
-	}*/
-	//#movetoroom Moves to another room
-	/*
-	else if (_buf[1] == 'm' && _buf[2] == 'o' && _buf[3] == 'v' && _buf[4] == 'e' && _buf[5] == 't' && _buf[6] == 'o' && _buf[7] == 'r' && _buf[8] == 'o' && _buf[9] == 'o' && _buf[10] == 'm' &&_buf[11] == ' ') {
-		if (CheckUserIdentity(user)) {
-			for (size_t i = 12; i < _buf.length(); i++) {
-				auxstring[auxnum] = _buf[i];
-				auxnum++;
-			}
-			if (!CheckExistingRooms(auxstring)) {
-				printf("User tried to join a room the doesnt exist\n");
-				WriteServerAnswer("The room you want to join doesnt exist");
-			}
-			else {
-				printf("Moving %s to another room\n", GUserName(user));
-				MoveUserRoom(user, auxstring);
-				WriteServerAnswer("User " + GUserName(user) + " was moved to room " + auxstring);
-			}
-		}
-	}*/
+
 	else {
 		printf("Data: Invalid Command\n");
 		WriteServerAnswer("Sorry, the command you used doesn't exist. Try using #help to check existing commands\n");
 	}
 }
 
-void PlayCommand(string _buf, sockaddr_in user) {
+void PlayCommand(string _buf, int user) {
 	//#help
 	if (_buf[1] == 'h' && _buf[2] == 'e' && _buf[3] == 'l' && _buf[4] == 'p') {
 		WriteServerAnswer("Command list:\n#quit : Exists the current game room\n#surrender : Give up the current match\n#replay : When a game has ended, you can use this to choose to replay with your opponent\n#1-9 : Select the number of the space to put your piece\n");
 	}
 	//#quit
 	else if (_buf[1] == 'q' && _buf[2] == 'u' && _buf[3] == 'i' && _buf[4] == 't') {
-		if (GetUName(user) == GetPlayerGameRoom(user)._playerX) {
+
+		if (userList[user]._name == GetPlayerGameRoom(user)._playerX)
+		{
 			WriteServerAnswer("X Player " + GetPlayerGameRoom(user)._playerX + " has left the play room\n");
 			GetPlayerGameRoom(user)._playerX = "empty";
-			MoveUserRoom(user, "general");
+			userList[user].room = "general";
 		}
-		else if (GetUName(user) == GetPlayerGameRoom(user)._playerO) {
+		else
+		{
 			WriteServerAnswer("O Player " + GetPlayerGameRoom(user)._playerO + " has left the play room\n");
 			GetPlayerGameRoom(user)._playerO = "empty";
-			MoveUserRoom(user, "general");
+			userList[user].room = "general";
 		}
+		
 	}
 	//#surrender
 	else if (_buf[1] == 's' && _buf[2] == 'u' && _buf[3] == 'r' && _buf[4] == 'r' && _buf[5] == 'e' && _buf[6] == 'n' && _buf[7] == 'd' && _buf[8] == 'e' && _buf[9] == 'r') {
 		if (!GetPlayerGameRoom(user)._gameEnded) {
 			ChangeRoomBool(GetPlayerGameRoom(user), "_gameEnded", true);
-			if (GetUName(user) == GetPlayerGameRoom(user)._playerX)
+			if (userList[user]._name == GetPlayerGameRoom(user)._playerX)
 				WriteServerAnswer("X Player " + GetPlayerGameRoom(user)._playerX + " has surrendered, the winner is the O Player " + GetPlayerGameRoom(user)._playerO + ". Use #replay to start a new game\n");
-			else if (GetUName(user) == GetPlayerGameRoom(user)._playerO)
+			else if (userList[user]._name == GetPlayerGameRoom(user)._playerO)
 				WriteServerAnswer("O Player " + GetPlayerGameRoom(user)._playerO + " has surrendered, the winner is the X Player " + GetPlayerGameRoom(user)._playerX + ". Use #replay to start a new game\n");
 		}
 		else {
@@ -586,11 +578,11 @@ void PlayCommand(string _buf, sockaddr_in user) {
 	//#replay
 	else if (_buf[1] == 'r' && _buf[2] == 'e' && _buf[3] == 'p' && _buf[4] == 'l' && _buf[5] == 'a' && _buf[6] == 'y') {
 		if (GetPlayerGameRoom(user)._gameEnded) {
-			if (GetUName(user) == GetPlayerGameRoom(user)._playerX) {
+			if (userList[user]._name == GetPlayerGameRoom(user)._playerX) {
 				WriteServerAnswer("Player X " + GetPlayerGameRoom(user)._playerX + " has accepted to rematch!\n");
 				ChangeRoomBool(GetPlayerGameRoom(user), "_xReplay", true);
 			}
-			else if (GetUName(user) == GetPlayerGameRoom(user)._playerO) {
+			else if (userList[user]._name == GetPlayerGameRoom(user)._playerO) {
 				WriteServerAnswer("Player O " + GetPlayerGameRoom(user)._playerO + " has accepted to rematch!\n");
 				ChangeRoomBool(GetPlayerGameRoom(user), "_oReplay", true);
 			}
@@ -607,14 +599,14 @@ void PlayCommand(string _buf, sockaddr_in user) {
 	//#"Number of placing"
 	else if (_buf[1] == '1' || _buf[1] == '2' || _buf[1] == '3' || _buf[1] == '4' || _buf[1] == '5' || _buf[1] == '6' || _buf[1] == '7' || _buf[1] == '8' || _buf[1] == '9') {
 		if (!GetPlayerGameRoom(user)._gameEnded) {
-			if (GetUName(user) == GetPlayerGameRoom(user)._playerX && GetPlayerGameRoom(user)._isXTurn == true) {
+			if (userList[user]._isPlaying == cross && GetPlayerGameRoom(user)._isXTurn == true) {
 				PlayerMoveMaker(user, _buf[1]);
 			}
-			else if (GetUName(user) == GetPlayerGameRoom(user)._playerO && GetPlayerGameRoom(user)._isXTurn == false) {
+			else if (userList[user]._isPlaying == circle && GetPlayerGameRoom(user)._isXTurn == false) {
 				PlayerMoveMaker(user, _buf[1]);
 			}
 			else {
-				WriteServerAnswer("It's not your turn " + GetUName(user) + '\n');
+				WriteServerAnswer("It's not your turn " + userList[user]._name + '\n');
 			}
 		}
 		else {
@@ -703,21 +695,22 @@ int main() {
 			cout << "Received packet from :";
 			cout << "IP: " << ipP1 << "." << ipP2 << "." << ipP3 << "." << ipP4 << " ";
 			cout << "Port: " << ntohs(sizeSocket.sin_port) << endl;
-			cout << "Room: " << GetUName(sizeSocket) << endl;
+			if(actualID>=0)
+				cout << "Room: " << userList[actualID].room.c_str() << endl;
 			cout << endl;
 
 
 
 			if (actualID >= 0) {
 				if (buf[0] == '#') {
-					if (userList[actualID]._isPlaying)
-						PlayCommand(buf, sizeSocket);
+					if (userList[actualID]._isPlaying > notPlaying)
+						PlayCommand(buf, actualID);
 					else
-						Command(buf, sizeSocket);
+						Command(buf, actualID);
 				}
 				else {
-					cout << GetUName(sizeSocket).c_str() << ": " << buf << endl;
-					WriteServerAnswer(GetUName(sizeSocket) + ": " + buf);
+					cout << userList[actualID]._name.c_str() << ": " << buf << endl;
+					WriteServerAnswer(userList[actualID]._name + ": " + buf);
 				}
 			}
 			else {
@@ -732,7 +725,7 @@ int main() {
 					}
 					SetUserName(sizeSocket, strName);
 					generalusers.push_back(sizeSocket);
-					WriteServerAnswer("Welcome user " + GetUName(sizeSocket) + '\n');
+					WriteServerAnswer("Welcome user " + strName + '\n');
 
 				}
 				else {
@@ -753,8 +746,7 @@ int main() {
 					}
 				}
 			}
-			cout << GetURoom(sizeSocket).c_str() << " | " << GetUName(sizeSocket).c_str() << " : " << serverAnswer << endl;
-			//printf("\n %s", serverAnswer);
+			//cout << GetURoom(sizeSocket).c_str() << " | " << userList[actualID]._name.c_str() << " : " << serverAnswer << endl;
 		}
 
 		else if (n < 0) {
