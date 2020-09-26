@@ -140,18 +140,6 @@ string GetURoom(sockaddr_in user) {
 }
 
 
-
-int GetUPlayStatus(sockaddr_in user) {
-	vector<User>::iterator it = userList.begin();
-	for (size_t i = 0; i < userList.size(); i++) {
-		if (it->_userip.sin_addr.S_un.S_addr == user.sin_addr.S_un.S_addr && it->_userport.sin_port == user.sin_port) {
-			return it->_isPlaying;
-		}
-		it++;
-	}
-	return -1;
-}
-
 int GetUID(sockaddr_in user) {
 	vector<User>::iterator it = userList.begin();
 	for (size_t i = 0; i < userList.size(); i++) {
@@ -161,30 +149,6 @@ int GetUID(sockaddr_in user) {
 		it++;
 	}
 	return -1;
-}
-
-void MoveUserRoom(sockaddr_in user, string room) {
-	vector<User>::iterator it = userList.begin();
-	for (size_t i = 0; i < userList.size(); i++) {
-		if (it->_userip.sin_addr.S_un.S_addr == user.sin_addr.S_un.S_addr && it->_userport.sin_port == user.sin_port) {
-			it->room = room;
-		}
-		it++;
-	}
-}
-
-
-bool CheckUserIdentity(sockaddr_in checkip) {
-	bool exists = false;
-	vector<User>::iterator it = userList.begin();
-	for (size_t i = 0; i < userList.size(); i++) {
-		if (it->_userip.sin_addr.S_un.S_addr == checkip.sin_addr.S_un.S_addr && it->_userport.sin_port == checkip.sin_port) {
-			exists = true;
-			break;
-		}
-		it++;
-	}
-	return exists;
 }
 
 PlayRoom GetPlayerGameRoom(int user) {
@@ -441,7 +405,7 @@ void PlayerMoveMaker(int user, char place) {
 				WriteServerAnswer(DrawBoard(GetPlayerGameRoom(user)) + "\nNo more moves to make! It's a TIE\n");
 			}
 			else if (result != "tie" && result != "none") {
-				WriteServerAnswer(DrawBoard(GetPlayerGameRoom(user)) + "\nGAME ENDED! The winner of the match is " + result + "\n" + "try #help");
+				WriteServerAnswer(DrawBoard(GetPlayerGameRoom(user)) + "\nGAME ENDED! The winner of the match is " + result + "\n" + "try #help to know all the commands");
 			}
 
 		}
@@ -476,7 +440,7 @@ void Command(string _buf, int user) {
 
 	//#help
 	if (_buf[1] == 'h' && _buf[2] == 'e' && _buf[3] == 'l' && _buf[4] == 'p') {
-		WriteServerAnswer("Command List:\n#play : Looks for rooms to start playing\n");
+		WriteServerAnswer("Command List:\n #play : Looks for rooms to start playing\n");
 	}
 	//#play
 	else if (_buf[1] == 'p' && _buf[2] == 'l' && _buf[3] == 'a' && _buf[4] == 'y') {

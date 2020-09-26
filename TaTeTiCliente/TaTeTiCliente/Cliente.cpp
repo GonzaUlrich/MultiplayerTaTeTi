@@ -54,7 +54,7 @@ void main()
 
 	int point = 0;
 	memset(message, '\0', BUFLEN);
-	printf("Welcome, you need to write #login + a username to start playing\n");
+	printf("Welcome, you need to write #login + a username to start playing\n Try #help to know the commands ");
 	while (1) {
 
 		//send the message
